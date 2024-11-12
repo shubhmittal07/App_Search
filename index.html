@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Search</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            text-align: center;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-height: 80vh; /* Set maximum height */
+            overflow-y: auto; /* Enable vertical scrolling */
+        }
+
+        input[type="text"] {
+            width: 80%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #28a745;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            background: #f9f9f9;
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+        }
+
+        .spinner {
+            display: none;
+            margin: 20px auto;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .progress-bar {
+            display: none;
+            width: 100%;
+            background-color: #f3f3f3;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .progress-bar-inner {
+            height: 20px;
+            width: 0;
+            background-color: #3498db;
+            border-radius: 4px;
+            text-align: center;
+            color: white;
+            line-height: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>App Search</h1>
+        <input type="text" id="query" placeholder="Enter app name">
+        <button onclick="searchApps()">Search</button>
+        <div class="spinner" id="spinner"></div>
+        <ul id="results"></ul>
+        <div class="progress-bar" id="progress-bar">
+            <div class="progress-bar-inner" id="progress-bar-inner">0%</div>
+        </div>
+        <ul id="reviews"></ul>
+    </div>
+
+    <script>
+        function searchApps() {
+            const query = document.getElementById('query').value;
+            const spinner = document.getElementById('spinner');
+            const results = document.getElementById('results');
+            const reviews = document.getElementById('reviews');
+
+            spinner.style.display = 'block';  // Show spinner
+            results.innerHTML = '';  // Clear previous results
+            reviews.innerHTML = '';  // Clear previous reviews
+
+            fetch('/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ query: query })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    spinner.style.display = 'none';  // Hide spinner
+                    data.results.forEach(app => {
+                        const li = document.createElement('li');
+                        li.textContent = `${app.title} (${app.platform})`;
+                        li.onclick = () => fetchReviews(app.app_id, app.title, app.platform);  // Pass app.title as app_name
+                        results.appendChild(li);
+                    });
+                })
+                .catch(error => {
+                    spinner.style.display = 'none';  // Hide spinner
+                    console.error('Error:', error);
+                });
+        }
+
+        function fetchReviews(app_id, app_name, platform) {
+            const progressBar = document.getElementById('progress-bar');
+            const progressBarInner = document.getElementById('progress-bar-inner');
+            const reviews = document.getElementById('reviews');
+
+            progressBar.style.display = 'block';  // Show progress bar
+            progressBarInner.style.width = '0%';  // Reset progress bar
+            progressBarInner.textContent = '0%';  // Reset progress text
+            reviews.innerHTML = '';  // Clear previous reviews
+
+            fetch('/reviews', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ app_id: app_id, app_name: app_name, platform: platform })  // Include app_name
+            })
+                .then(response => response.json())
+                .then(data => {
+                    let progress = 0;
+                    const interval = setInterval(() => {
+                        progress += 10;
+                        progressBarInner.style.width = `${progress}%`;
+                        progressBarInner.textContent = `${progress}%`;
+                        if (progress >= 100) {
+                            clearInterval(interval);
+                            progressBar.style.display = 'none';  // Hide progress bar
+                        }
+                    }, 100);
+
+                    data.reviews.forEach(review => {
+                        const li = document.createElement('li');
+                        li.textContent = review.review;
+                        reviews.appendChild(li);
+                    });
+                })
+                .catch(error => {
+                    progressBar.style.display = 'none';  // Hide progress bar
+                    console.error('Error:', error);
+                });
+        }
+
+    </script>
+</body>
+
+</html>
